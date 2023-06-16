@@ -139,7 +139,8 @@ app.get("/purchases",function(req,res){
             if(sort=="ValueDesc"){
                 arr1=arr1.sort((p1,p2)=>(p2.quantity*p2.price)-(p1.quantity*p1.price));
             }
-            res.send(arr1);
+            shopsArr.purchases=arr1;
+            res.send(shopsArr);
         }
     });
 });
@@ -168,48 +169,68 @@ app.get("/purchases/products/:id",function(req,res){
     });
 });
 
-app.get("/totalPurchase/shop/:id",function(req,res){
-    let id=+req.params.id;
-    fs.readFile(fname,"utf8",(err,data)=>{
-        if(err) res.status(404).send(err);
-        else{
-            let shopsArr=JSON.parse(data);
-            const productTotals = shopsArr.purchases
-  .filter(purchase => purchase.shopId === id)
-  .map(purchase => {
-    const product = shopsArr.products.find(product => product.productId === purchase.productid);
-    return {
-        productId:product.productId,
-      productName: product.productName,
-      category: product.category,
-      description: product.description,
-      totalPurchase: purchase.quantity * purchase.price
-    };
-  });
-            res.send(productTotals);
-        }
-    });
-});
-
-app.get("/totalPurchase/product/:id", function(req, res) {
-    let productId = +req.params.id;
+app.get("/totalPurchase/shop/:id", function(req, res) {
+    let id = +req.params.id;
     fs.readFile(fname, "utf8", (err, data) => {
-      if (err) {
-        res.status(404).send(err);
-      } else {
+      if (err) res.status(404).send(err);
+      else {
         let shopsArr = JSON.parse(data);
-        const productTotals = shopsArr.purchases
-          .filter(purchase => purchase.productid === productId)
-          .map(purchase => {
-            const shop = shopsArr.shops.find(shop => shop.shopId === purchase.shopId);
-            return {
-              shopId: shop.shopId,
-              name: shop.name,
-              rent:shop.rent,
-              totalPurchase: purchase.quantity * purchase.price
-            };
-          });
-        res.send(productTotals);
+        const purchase = shopsArr.purchases;
+        const products = shopsArr.products;
+  
+        const purchaseArr = purchase.filter(f => f.shopId === id);
+  
+        const result = products.map(product => {
+          const { productId } = product;
+          const totalPurchase = purchaseArr
+            .filter(purchase => purchase.productid === productId)
+            .reduce((total, purchase) => total + purchase.quantity, 0);
+  
+          return {
+            ...product,
+            totalPurchase: totalPurchase || 0
+          };
+        });
+  
+        res.send(result);
+      }
+    });
+  });
+
+  app.get("/totalPurchase/product/:id", function(req, res) {
+    let id = +req.params.id;
+    fs.readFile(fname, "utf8", (err, data) => {
+      if (err) res.status(404).send(err);
+      else {
+        let shopsArr = JSON.parse(data);
+        const purchase = shopsArr.purchases;
+        const products = shopsArr.products;
+  
+        const purchaseArr = purchase.filter(f => f.productid === id);
+  
+        const result = purchaseArr.reduce((acc, purchase) => {
+          const { shopId, quantity } = purchase;
+          const shop = shopsArr.shops.find(shop => shop.shopId === shopId);
+  
+          if (shop) {
+            const existingShop = acc.find(item => item.shopId === shopId);
+  
+            if (existingShop) {
+              existingShop.totalPurchase += quantity;
+            } else {
+              acc.push({
+                shopId,
+                name: shop.name,
+                rent:shop.rent,
+                totalPurchase: quantity
+              });
+            }
+          }
+  
+          return acc;
+        }, []);
+  
+        res.send(result);
       }
     });
   });
