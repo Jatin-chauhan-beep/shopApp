@@ -112,7 +112,7 @@ app.put("/products/:id",function(req,res){
 });
 
 app.get("/purchases",function(req,res){
-    let shop=+req.query.shop;
+    let shop=req.query.shop;
     let product=req.query.product;
     let sort=req.query.sort;
     fs.readFile(fname,"utf8",(err,data)=>{
@@ -122,10 +122,10 @@ app.get("/purchases",function(req,res){
             let arr1=shopsArr.purchases;
             if (product) {
                 let productList = product.split(",");
-                arr1 = arr1.filter(f => productList.includes(f.productid.toString()));
+                arr1 = arr1.filter(f => productList.includes(`pr${f.productid}`));
               }
             if(shop){
-                arr1=arr1.filter(f=>f.shopId==shop);
+                arr1=arr1.filter(f=>f.shopId==shop.substring(2,3));
             }
             if(sort=="QtyAsc"){
                 arr1=arr1.sort((p1,p2)=>p1.quantity-p2.quantity);
